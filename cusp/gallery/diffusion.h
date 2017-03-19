@@ -82,10 +82,10 @@ void diffusion(	MatrixType& matrix, size_t m, size_t n,
 	if( thrust::detail::is_same<Method, FE>::value )
 	{
 		a = (-1.0*eps - 1.0)*CC + (-1.0*eps - 1.0)*SS + ( 3.0*eps - 3.0)*CS;
-        	b = ( 2.0*eps - 4.0)*CC + (-4.0*eps + 2.0)*SS;
-        	c = (-1.0*eps - 1.0)*CC + (-1.0*eps - 1.0)*SS + (-3.0*eps + 3.0)*CS;
-        	d = (-4.0*eps + 2.0)*CC + ( 2.0*eps - 4.0)*SS;
-        	e = ( 8.0*eps + 8.0)*CC + ( 8.0*eps + 8.0)*SS;
+        b = ( 2.0*eps - 4.0)*CC + (-4.0*eps + 2.0)*SS;
+        c = (-1.0*eps - 1.0)*CC + (-1.0*eps - 1.0)*SS + (-3.0*eps + 3.0)*CS;
+        d = (-4.0*eps + 2.0)*CC + ( 2.0*eps - 4.0)*SS;
+        e = ( 8.0*eps + 8.0)*CC + ( 8.0*eps + 8.0)*SS;
 
 		a /= 6.0;
 		b /= 6.0;
@@ -119,6 +119,73 @@ void diffusion(	MatrixType& matrix, size_t m, size_t n,
 	stencil.push_back(StencilPoint(StencilIndex(  1,  1), a));
 
 	cusp::gallery::generate_matrix_from_stencil(matrix, stencil, StencilIndex(m,n));
+}
+
+template <typename MatrixType>
+void diffusion7pt( MatrixType& matrix, size_t m, size_t n, size_t k,
+    const double p = 4.0, const double q = 4.0, const double r = 4.0)
+{
+    CUSP_PROFILE_SCOPED();
+
+    typedef typename MatrixType::index_type IndexType;
+    typedef typename MatrixType::value_type ValueType; 
+    typedef thrust::tuple<IndexType,IndexType,IndexType>    StencilIndex;
+    typedef thrust::tuple<StencilIndex,ValueType> 	    StencilPoint;
+    
+    ValueType c[7];
+    
+    c[0] = exp(0.5 * r / (k+1)) * (k+1)*(k+1);
+    c[1] = exp(0.5 * q / (n+1)) * (n+1)*(n+1);
+    c[2] = exp(0.5 * p / (m+1)) * (m+1)*(m+1);
+    c[4] = exp(- 0.5 * p / (m+1)) * (m+1)*(m+1);
+    c[5] = exp(- 0.5 * q / (n+1)) * (n+1)*(n+1);
+    c[6] = exp(- 0.5 * r / (k+1)) * (k+1)*(k+1);
+
+    c[3] = -(c[0] + c[1] + c[2] + c[4] + c[5] + c[6]);
+
+    cusp::array1d<StencilPoint, cusp::host_memory> stencil;
+    stencil.push_back(StencilPoint(StencilIndex( 0,  0, -1), c[0]));
+    stencil.push_back(StencilPoint(StencilIndex( 0, -1,  0), c[1]));
+    stencil.push_back(StencilPoint(StencilIndex(-1,  0,  0), c[2]));
+    stencil.push_back(StencilPoint(StencilIndex( 0,  0,  0), c[3]));
+    stencil.push_back(StencilPoint(StencilIndex( 1,  0,  0), c[4]));
+    stencil.push_back(StencilPoint(StencilIndex( 0,  1,  0), c[5]));
+    stencil.push_back(StencilPoint(StencilIndex( 0,  0,  1), c[6]));
+
+    cusp::gallery::generate_matrix_from_stencil(matrix, stencil, StencilIndex(m,n,k));
+}
+
+template <typename MatrixType>
+void antisymmetric7pt ( MatrixType& matrix, size_t m, size_t n, size_t k)
+{
+	CUSP_PROFILE_SCOPED();
+
+    typedef typename MatrixType::index_type IndexType;
+    typedef typename MatrixType::value_type ValueType; 
+    typedef thrust::tuple<IndexType,IndexType,IndexType>    StencilIndex;
+    typedef thrust::tuple<StencilIndex,ValueType> 	    StencilPoint;
+	
+	ValueType c[7];
+    
+    c[0] = -k;
+    c[1] = -n;
+    c[2] = -m;
+    c[4] = m;
+    c[5] = n;
+    c[6] = k;
+
+    c[3] = 0;
+	
+	cusp::array1d<StencilPoint, cusp::host_memory> stencil;
+    stencil.push_back(StencilPoint(StencilIndex( 0,  0, -1), c[0]));
+    stencil.push_back(StencilPoint(StencilIndex( 0, -1,  0), c[1]));
+    stencil.push_back(StencilPoint(StencilIndex(-1,  0,  0), c[2]));
+    stencil.push_back(StencilPoint(StencilIndex( 0,  0,  0), c[3]));
+    stencil.push_back(StencilPoint(StencilIndex( 1,  0,  0), c[4]));
+    stencil.push_back(StencilPoint(StencilIndex( 0,  1,  0), c[5]));
+    stencil.push_back(StencilPoint(StencilIndex( 0,  0,  1), c[6]));
+
+    cusp::gallery::generate_matrix_from_stencil(matrix, stencil, StencilIndex(m,n,k));
 }
 /*! \}
  */
